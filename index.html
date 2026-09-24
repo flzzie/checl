@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShieldVultus Web</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0e14; --panel:#10161f; --border:#1e2733;
+  --accent:#4fc3f7; --accent-dim:#1f4d5e;
+  --text:#dfe6ee; --muted:#7186a0;
+  --ok:#4fd18b; --warn:#e8b34e; --bad:#e8615f;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  --font-sans:'Inter',-apple-system,sans-serif;
+}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--font-sans);
+  min-height:100vh; padding:40px 20px;
+}
+.wrap{max-width:920px;margin:0 auto;}
+header{margin-bottom:28px;}
+header h1{font-family:var(--font-mono);font-size:26px;letter-spacing:1px;}
+header h1 span{color:var(--accent);}
+header p{color:var(--muted);font-size:13.5px;margin-top:6px;line-height:1.6;}
+.notice{
+  background:#1a2230;border:1px solid #2a3648;border-radius:8px;padding:14px 16px;
+  font-size:12.5px;color:var(--muted);margin-bottom:24px;line-height:1.6;
+}
+.notice b{color:var(--text);}
+.keybox{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:18px 20px;margin-bottom:24px;
+}
+.keybox h2{font-size:14px;margin-bottom:8px;}
+.keybox p{color:var(--muted);font-size:12.5px;margin-bottom:12px;line-height:1.6;}
+.keybox p a{color:var(--accent);}
+.keyrow{display:flex;gap:10px;}
+input[type=text], input[type=password]{
+  background:#0a0e14;border:1px solid var(--border);color:var(--text);
+  font-family:var(--font-mono);font-size:13px;padding:10px 12px;border-radius:6px;width:100%;
+}
+input:focus{outline:none;border-color:var(--accent-dim);}
+button{
+  background:var(--accent);color:#04202b;border:none;border-radius:6px;
+  padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font-sans);
+  white-space:nowrap;
+}
+button:hover{background:#6cd0ff;}
+button:disabled{opacity:0.5;cursor:default;}
+.keystatus{font-size:12px;margin-top:8px;color:var(--ok);}
+.keystatus.missing{color:var(--warn);}
+.card{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:22px;margin-bottom:20px;
+}
+.card h2{font-size:15px;margin-bottom:6px;}
+.card p.desc{color:var(--muted);font-size:12.5px;margin-bottom:16px;line-height:1.6;}
+.row{display:flex;gap:10px;}
+.row input{flex:1;}
+.result{margin-top:16px;font-size:13px;}
+.verdict{
+  display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:14px;
+  padding:8px 14px;border-radius:6px;margin-bottom:10px;
+}
+.verdict.ok{background:rgba(79,209,139,0.12);color:var(--ok);}
+.verdict.warn{background:rgba(232,179,78,0.12);color:var(--warn);}
+.verdict.bad{background:rgba(232,97,95,0.12);color:var(--bad);}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px;}
+.stat{background:#0a0e14;border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;}
+.stat .n{font-family:var(--font-mono);font-size:18px;font-weight:700;}
+.stat .l{font-size:10.5px;color:var(--muted);margin-top:2px;}
+.meta-line{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.7;}
+.meta-line b{color:var(--text);}
+.chain{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-top:10px;line-height:1.9;word-break:break-all;}
+.chain .final{color:var(--accent);font-weight:600;}
+.err{color:var(--bad);font-size:12.5px;margin-top:12px;}
+.loading{color:var(--muted);font-size:12.5px;margin-top:12px;}
+textarea{
+  background:#0a0e14;border:1px solid var(--border);color:var(--text);
+  font-family:var(--font-mono);font-size:13px;padding:10px 12px;border-radius:6px;width:100%;
+  min-height:110px;resize:vertical;
+}
+textarea:focus{outline:none;border-color:var(--accent-dim);}
+select{
+  background:#0a0e14;border:1px solid var(--border);color:var(--text);
+  font-family:var(--font-sans);font-size:13px;padding:10px 12px;border-radius:6px;width:100%;
+}
+.batch-list{margin-top:14px;display:flex;flex-direction:column;gap:6px;}
+.batch-item{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  background:#0a0e14;border:1px solid var(--border);border-radius:6px;padding:9px 12px;
+  font-family:var(--font-mono);font-size:12px;
+}
+.batch-item .q{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+.batch-tag{font-family:var(--font-sans);font-weight:700;font-size:10.5px;padding:3px 8px;border-radius:10px;flex-shrink:0;}
+.batch-tag.pending{background:#1e2733;color:var(--muted);}
+.batch-tag.checking{background:rgba(79,195,247,0.15);color:var(--accent);}
+.batch-tag.ok{background:rgba(79,209,139,0.15);color:var(--ok);}
+.batch-tag.warn{background:rgba(232,179,78,0.15);color:var(--warn);}
+.batch-tag.bad{background:rgba(232,97,95,0.15);color:var(--bad);}
+.batch-tag.err{background:rgba(232,97,95,0.15);color:var(--bad);}
+.history-item{
+  border-bottom:1px solid var(--border);padding:11px 0;font-size:12.5px;
+  display:flex;justify-content:space-between;gap:10px;align-items:center;
+}
+.history-item:last-child{border-bottom:none;}
+.history-item .hq{font-family:var(--font-mono);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.history-item .ht{color:var(--muted);font-size:11px;flex-shrink:0;}
+.empty-hint{color:var(--muted);font-size:12.5px;font-style:italic;}
+.report-item{
+  border-bottom:1px solid var(--border);padding:12px 0;font-size:12.5px;
+}
+.report-item:last-child{border-bottom:none;}
+.report-item .rtype{
+  display:inline-block;font-size:10.5px;font-weight:700;color:var(--accent);
+  background:rgba(79,195,247,0.12);padding:2px 8px;border-radius:10px;margin-bottom:6px;
+}
+.report-item .rval{font-family:var(--font-mono);color:var(--text);word-break:break-all;}
+.report-item .rdesc{color:var(--muted);margin-top:4px;line-height:1.5;}
+.report-item .rmeta{color:var(--muted);font-size:11px;margin-top:6px;}
+.flag-banner{
+  background:rgba(232,97,95,0.12);border:1px solid rgba(232,97,95,0.35);color:var(--bad);
+  border-radius:6px;padding:10px 14px;font-size:12.5px;margin-bottom:10px;font-weight:600;
+}
+.breach-match{
+  background:#0a0e14;border:1px solid var(--border);border-radius:6px;padding:10px 12px;
+  margin-top:8px;font-family:var(--font-mono);font-size:12px;
+}
+.breach-match .bfield{color:var(--muted);}
+.breach-match .bfield b{color:var(--text);font-weight:600;}
+.breach-count{font-size:12.5px;color:var(--muted);margin-top:8px;}
+input[type=file]{
+  color:var(--muted);font-size:12.5px;font-family:var(--font-sans);
+  background:#0a0e14;border:1px solid var(--border);border-radius:6px;padding:10px 12px;width:100%;
+}
+.qr-decoded{
+  background:#0a0e14;border:1px solid var(--border);border-radius:6px;padding:12px;
+  font-family:var(--font-mono);font-size:12.5px;word-break:break-all;margin-top:12px;
+}
+.qr-decoded button{margin-top:10px;}
+footer{text-align:center;color:var(--muted);font-size:11px;margin-top:20px;font-family:var(--font-mono);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ShieldVultus<span> Web</span></h1>
+    <p>URL scanning, file-hash lookup, and shortened-link resolution - powered by VirusTotal.</p>
+  </header>
+
+  <div class="notice">
+    <b>What this can and can't do:</b> this web version scans and reports on threats. It cannot quarantine or remove files from your computer - that needs real filesystem access, which only the <a href="https://github.com/flzzie" style="color:var(--accent)">desktop version of ShieldVultus</a> has. Think of this as the "check before you click" companion, not a replacement for it.
+  </div>
+
+  <div class="keybox">
+    <h2>Your VirusTotal API key</h2>
+    <p>Free at <a href="https://www.virustotal.com/gui/join-us" target="_blank">virustotal.com</a> (no card needed). Stored only in your own browser - never sent anywhere except directly to VirusTotal through this site's proxy.</p>
+    <div class="keyrow">
+      <input type="password" id="apiKeyInput" placeholder="Paste your VirusTotal API key">
+      <button id="saveKeyBtn">Save</button>
+    </div>
+    <div class="keystatus" id="keyStatus"></div>
+  </div>
+
+  <div class="card">
+    <h2>Scan a URL</h2>
+    <p class="desc">Submits the URL to VirusTotal and checks it against dozens of security vendors.</p>
+    <div class="row">
+      <input type="text" id="urlInput" placeholder="https://example.com/suspicious-link">
+      <button id="urlBtn">Scan</button>
+    </div>
+    <div id="urlResult"></div>
+  </div>
+
+  <div class="card">
+    <h2>Look up a file hash</h2>
+    <p class="desc">Paste a SHA256, SHA1, or MD5 hash to see if that file is known to be malicious - no need to upload the file itself.</p>
+    <div class="row">
+      <input type="text" id="hashInput" placeholder="e.g. 275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0">
+      <button id="hashBtn">Look up</button>
+    </div>
+    <div id="hashResult"></div>
+  </div>
+
+  <div class="card">
+    <h2>Resolve a shortened link</h2>
+    <p class="desc">Follows redirects so you can see where a shortened or disguised link actually leads, before you click it. Doesn't need an API key.</p>
+    <div class="row">
+      <input type="text" id="shortInput" placeholder="https://bit.ly/example">
+      <button id="shortBtn">Resolve</button>
+    </div>
+    <div id="shortResult"></div>
+  </div>
+
+  <div class="card">
+    <h2>Scan a QR code</h2>
+    <p class="desc">Upload a photo of a QR code (or take one, on mobile). Decoded entirely in your browser - the image never leaves your device. If it decodes to a link, you can send it straight to the URL scanner above.</p>
+    <input type="file" id="qrInput" accept="image/*" capture="environment">
+    <div id="qrResult"></div>
+  </div>
+
+  <div class="card">
+    <h2>Check if a password was breached</h2>
+    <p class="desc">Your password never leaves your browser. It's hashed locally and only the first 5 characters of that hash are sent to check against HaveIBeenPwned's Pwned Passwords database - this is a k-anonymity design, not a guess: it's mathematically impossible for the server to reconstruct your password from what it receives.</p>
+    <div class="row">
+      <input type="password" id="pwInput" placeholder="Type a password to check">
+      <button id="pwBtn">Check</button>
+    </div>
+    <div id="pwResult"></div>
+  </div>
+
+  <div class="card">
+    <h2>Check if an email was breached</h2>
+    <p class="desc">Searches breach.vip's leaked-credential database for this email address. This is public breach data already circulating - only check accounts you own or are authorized to check.</p>
+    <div class="row">
+      <input type="text" id="emailInput" placeholder="you@example.com">
+      <button id="emailBtn">Check</button>
+    </div>
+    <div id="emailResult"></div>
+  </div>
+
+  <div class="card">
+    <h2>Batch check</h2>
+    <p class="desc">Paste multiple URLs and/or file hashes, one per line. Runs one at a time to stay within VirusTotal's free-tier rate limit (about 15 seconds apart) - a batch of 10 takes a couple of minutes.</p>
+    <textarea id="batchInput" placeholder="https://example.com/one&#10;https://example.com/two&#10;275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0"></textarea>
+    <div class="row" style="margin-top:10px;">
+      <button id="batchBtn">Check all</button>
+      <button class="secondary" id="batchStopBtn" style="background:#1e2733;color:var(--text);display:none;">Stop</button>
+    </div>
+    <div class="batch-list" id="batchList"></div>
+  </div>
+
+  <div class="card">
+    <h2>Scan history <span style="float:right;"><span class="rtype" style="cursor:pointer;" id="clearHistoryBtn">clear</span></span></h2>
+    <p class="desc">Your last 50 checks on this device. Not shared with anyone.</p>
+    <div id="historyList"></div>
+  </div>
+
+  <div class="card">
+    <h2>Report a scam</h2>
+    <p class="desc">Seen a phishing link, fake giveaway, impersonation account, or invite-reward scam? Report it here so others checking the same link or handle get warned.</p>
+    <div class="row" style="margin-bottom:10px;">
+      <select id="reportType">
+        <option value="Phishing link">Phishing link</option>
+        <option value="Fake giveaway">Fake giveaway</option>
+        <option value="Impersonation">Impersonation</option>
+        <option value="Invite reward scam">Invite reward scam</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <input type="text" id="reportValue" placeholder="The URL, Discord invite, username, or handle involved" style="margin-bottom:10px;">
+    <textarea id="reportDesc" placeholder="What happened? (a sentence or two is enough)"></textarea>
+    <div class="row" style="margin-top:10px;">
+      <input type="text" id="reportName" placeholder="Your name or handle (optional)">
+      <button id="reportBtn">Submit report</button>
+    </div>
+    <div id="reportStatus"></div>
+  </div>
+
+  <div class="card">
+    <h2>Recent community reports</h2>
+    <p class="desc">Public and unmoderated - use judgement, this is crowd-sourced, not verified.</p>
+    <div id="reportsList"><div class="empty-hint">Loading...</div></div>
+  </div>
+
+  <footer>SCANS RUN THROUGH YOUR OWN VIRUSTOTAL KEY - NOTHING STORED SERVER-SIDE</footer>
+</div>
+
+<script>
+// PASTE your Firebase config below (can be a new project, or the same one
+// used for another project - reports are namespaced under 'shieldvultus/')
+const firebaseConfig = {
+  apiKey: "PASTE_ME",
+  databaseURL: "PASTE_ME",
+  projectId: "PASTE_ME"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+function getKey(){ return localStorage.getItem('sv_apikey') || ''; }
+function setKey(k){ localStorage.setItem('sv_apikey', k); }
+
+// ---------------- History (local only) ----------------
+function getHistory(){
+  try{ return JSON.parse(localStorage.getItem('sv_history') || '[]'); }catch(e){ return []; }
+}
+function addHistory(entry){
+  const hist = getHistory();
+  hist.unshift({...entry, at: Date.now()});
+  localStorage.setItem('sv_history', JSON.stringify(hist.slice(0,50)));
+  renderHistory();
+}
+function renderHistory(){
+  const el = document.getElementById('historyList');
+  const hist = getHistory();
+  if(hist.length===0){ el.innerHTML = '<div class="empty-hint">No checks yet.</div>'; return; }
+  el.innerHTML = hist.map(h=>{
+    const tagCls = h.verdict==='bad'?'bad':h.verdict==='warn'?'warn':h.verdict==='ok'?'ok':'pending';
+    return `<div class="history-item">
+      <span class="batch-tag ${tagCls}">${h.type}</span>
+      <span class="hq">${h.query}</span>
+      <span class="ht">${new Date(h.at).toLocaleString()}</span>
+    </div>`;
+  }).join('');
+}
+document.getElementById('clearHistoryBtn').onclick = ()=>{
+  localStorage.removeItem('sv_history');
+  renderHistory();
+};
+
+function renderKeyStatus(){
+  const status = document.getElementById('keyStatus');
+  const key = getKey();
+  if(key){
+    status.textContent = 'Key saved (' + key.slice(0,4) + '...' + key.slice(-4) + ')';
+    status.classList.remove('missing');
+  } else {
+    status.textContent = 'No key saved yet - URL scan and hash lookup need one.';
+    status.classList.add('missing');
+  }
+}
+
+document.getElementById('saveKeyBtn').onclick = ()=>{
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if(val){ setKey(val); document.getElementById('apiKeyInput').value=''; renderKeyStatus(); }
+};
+
+function verdictFromStats(stats){
+  const malicious = stats.malicious || 0;
+  const suspicious = stats.suspicious || 0;
+  if(malicious > 0) return {cls:'bad', label: malicious + ' vendor' + (malicious===1?'':'s') + ' flagged this as malicious'};
+  if(suspicious > 0) return {cls:'warn', label: suspicious + ' vendor' + (suspicious===1?'':'s') + ' flagged this as suspicious'};
+  return {cls:'ok', label:'No vendors flagged this as malicious'};
+}
+function shortVerdictLabel(cls){
+  return cls==='bad' ? 'malicious' : cls==='warn' ? 'suspicious' : 'clean';
+}
+
+function statsGridHtml(stats){
+  const order = [['malicious','Malicious'],['suspicious','Suspicious'],['harmless','Clean'],['undetected','Undetected']];
+  return '<div class="stats-grid">' + order.map(([k,label])=>
+    `<div class="stat"><div class="n">${stats[k]||0}</div><div class="l">${label}</div></div>`
+  ).join('') + '</div>';
+}
+
+async function apiCall(path, body){
+  const res = await fetch(path, {
+    method:'POST',
+    headers:{'content-type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if(!res.ok || data.error) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+// ---------------- URL scan ----------------
+document.getElementById('urlBtn').onclick = async ()=>{
+  const url = document.getElementById('urlInput').value.trim();
+  const resultEl = document.getElementById('urlResult');
+  const key = getKey();
+  if(!url){ return; }
+  if(!key){ resultEl.innerHTML = '<div class="err">Save your VirusTotal API key above first.</div>'; return; }
+  resultEl.innerHTML = '<div class="loading">Checking community reports...</div>';
+  const flagHtml = await communityFlagHtml(url);
+  resultEl.innerHTML = flagHtml + '<div class="loading">Submitting to VirusTotal...</div>';
+  try{
+    const submitData = await apiCall('/api/submit-url', {url, apiKey:key});
+    resultEl.innerHTML = flagHtml + '<div class="loading">Analyzing (this can take a few seconds)...</div>';
+    let stats = null;
+    for(let i=0;i<8;i++){
+      await new Promise(r=>setTimeout(r,2000));
+      const check = await apiCall('/api/check-analysis', {analysisId: submitData.analysisId, apiKey:key});
+      if(check.status==='completed'){ stats = check.stats; break; }
+    }
+    if(!stats){ resultEl.innerHTML = flagHtml + '<div class="err">Analysis is taking longer than usual - try again shortly.</div>'; return; }
+    const v = verdictFromStats(stats);
+    resultEl.innerHTML = flagHtml + `<div class="result"><div class="verdict ${v.cls}">${v.label}</div>${statsGridHtml(stats)}</div>`;
+    addHistory({type:'url', query:url, verdict:v.cls});
+  }catch(e){
+    resultEl.innerHTML = flagHtml + `<div class="err">${e.message}</div>`;
+  }
+};
+
+// ---------------- Hash lookup ----------------
+document.getElementById('hashBtn').onclick = async ()=>{
+  const hash = document.getElementById('hashInput').value.trim();
+  const resultEl = document.getElementById('hashResult');
+  const key = getKey();
+  if(!hash){ return; }
+  if(!key){ resultEl.innerHTML = '<div class="err">Save your VirusTotal API key above first.</div>'; return; }
+  resultEl.innerHTML = '<div class="loading">Looking up...</div>';
+  try{
+    const data = await apiCall('/api/lookup-hash', {hash, apiKey:key});
+    if(data.notFound){ resultEl.innerHTML = '<div class="verdict ok">Not in VirusTotal\'s database - could mean it\'s unseen, not necessarily safe</div>'; addHistory({type:'hash', query:hash, verdict:'pending'}); return; }
+    const v = verdictFromStats(data.stats);
+    const meta = `<div class="meta-line">${data.name ? '<b>Name:</b> '+data.name+'<br>' : ''}${data.type ? '<b>Type:</b> '+data.type+'<br>' : ''}${data.size ? '<b>Size:</b> '+data.size+' bytes<br>' : ''}${data.firstSeen ? '<b>First seen:</b> '+new Date(data.firstSeen*1000).toLocaleDateString() : ''}</div>`;
+    resultEl.innerHTML = `<div class="result"><div class="verdict ${v.cls}">${v.label}</div>${statsGridHtml(data.stats)}${meta}</div>`;
+    addHistory({type:'hash', query:hash, verdict:v.cls});
+  }catch(e){
+    resultEl.innerHTML = `<div class="err">${e.message}</div>`;
+  }
+};
+
+// ---------------- Unshorten ----------------
+document.getElementById('shortBtn').onclick = async ()=>{
+  const url = document.getElementById('shortInput').value.trim();
+  const resultEl = document.getElementById('shortResult');
+  if(!url){ return; }
+  resultEl.innerHTML = '<div class="loading">Following redirects...</div>';
+  try{
+    const data = await apiCall('/api/unshorten', {url});
+    const chainHtml = data.chain.map((u,i)=> i===data.chain.length-1 ? `<div class="final">-&gt; ${u}</div>` : `<div>${u}</div>`).join('');
+    resultEl.innerHTML = `<div class="result"><div class="meta-line"><b>${data.hops}</b> redirect${data.hops===1?'':'s'} followed</div><div class="chain">${chainHtml}</div></div>`;
+    addHistory({type:'link', query:url, verdict:'pending'});
+  }catch(e){
+    resultEl.innerHTML = `<div class="err">${e.message}</div>`;
+  }
+};
+
+renderKeyStatus();
+renderHistory();
+
+// ---------------- Community reports ----------------
+function normalizeValue(v){ return (v||'').trim().toLowerCase(); }
+
+async function communityFlagHtml(url){
+  try{
+    const snap = await db.ref('shieldvultus/reports').once('value');
+    if(!snap.exists()) return '';
+    const reports = Object.values(snap.val());
+    const norm = normalizeValue(url);
+    const matches = reports.filter(r => norm.includes(normalizeValue(r.value)) || normalizeValue(r.value).includes(norm));
+    if(matches.length===0) return '';
+    return `<div class="flag-banner">This has been reported by the community ${matches.length} time${matches.length===1?'':'s'} - see Recent community reports below.</div>`;
+  }catch(e){ return ''; }
+}
+
+document.getElementById('reportBtn').onclick = async ()=>{
+  const type = document.getElementById('reportType').value;
+  const value = document.getElementById('reportValue').value.trim();
+  const desc = document.getElementById('reportDesc').value.trim();
+  const name = document.getElementById('reportName').value.trim();
+  const statusEl = document.getElementById('reportStatus');
+  if(!value || !desc){ statusEl.innerHTML = '<div class="err">Fill in what was involved and what happened.</div>'; return; }
+  statusEl.innerHTML = '<div class="loading">Submitting...</div>';
+  try{
+    await db.ref('shieldvultus/reports').push({
+      type, value, description: desc,
+      reporterName: name || 'Anonymous',
+      reportedAt: Date.now()
+    });
+    document.getElementById('reportValue').value = '';
+    document.getElementById('reportDesc').value = '';
+    document.getElementById('reportName').value = '';
+    statusEl.innerHTML = '<div class="verdict ok">Report submitted - thank you.</div>';
+    loadReports();
+  }catch(e){
+    statusEl.innerHTML = `<div class="err">${e.message}</div>`;
+  }
+};
+
+async function loadReports(){
+  const el = document.getElementById('reportsList');
+  try{
+    const snap = await db.ref('shieldvultus/reports').limitToLast(30).once('value');
+    if(!snap.exists()){ el.innerHTML = '<div class="empty-hint">No reports yet.</div>'; return; }
+    const reports = Object.values(snap.val()).sort((a,b)=> b.reportedAt - a.reportedAt);
+    el.innerHTML = reports.map(r => `
+      <div class="report-item">
+        <span class="rtype">${r.type}</span>
+        <div class="rval">${r.value}</div>
+        <div class="rdesc">${r.description}</div>
+        <div class="rmeta">reported by ${r.reporterName || 'Anonymous'} - ${new Date(r.reportedAt).toLocaleDateString()}</div>
+      </div>
+    `).join('');
+  }catch(e){
+    el.innerHTML = `<div class="err">Couldn't load reports: ${e.message}</div>`;
+  }
+}
+loadReports();
+
+// ---------------- QR code scan ----------------
+function looksLikeUrl(text){
+  return /^https?:\/\//i.test(text.trim());
+}
+
+document.getElementById('qrInput').onchange = async (e)=>{
+  const file = e.target.files[0];
+  const resultEl = document.getElementById('qrResult');
+  if(!file) return;
+  resultEl.innerHTML = '<div class="loading">Decoding...</div>';
+  try{
+    const imageData = await new Promise((resolve, reject)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        resolve(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      };
+      img.onerror = ()=> reject(new Error('Could not read that image file.'));
+      img.src = URL.createObjectURL(file);
+    });
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    if(!code || !code.data){
+      resultEl.innerHTML = '<div class="err">No QR code found in that image.</div>';
+      return;
+    }
+    const text = code.data;
+    const isUrl = looksLikeUrl(text);
+    resultEl.innerHTML = `<div class="qr-decoded">
+      <b>Decoded:</b><br>${text.replace(/</g,'&lt;')}
+      ${isUrl ? '<br><button id="qrScanUrlBtn">Scan this link for threats</button>' : ''}
+    </div>`;
+    if(isUrl){
+      document.getElementById('qrScanUrlBtn').onclick = ()=>{
+        document.getElementById('urlInput').value = text;
+        document.getElementById('urlBtn').click();
+        document.getElementById('urlInput').scrollIntoView({behavior:'smooth', block:'center'});
+      };
+    }
+  }catch(err){
+    resultEl.innerHTML = `<div class="err">${err.message}</div>`;
+  }
+};
+
+// ---------------- Password breach check (k-anonymity, client-side only) ----------------
+async function sha1Hex(str){
+  const enc = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest('SHA-1', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+
+document.getElementById('pwBtn').onclick = async ()=>{
+  const pw = document.getElementById('pwInput').value;
+  const resultEl = document.getElementById('pwResult');
+  if(!pw){ return; }
+  resultEl.innerHTML = '<div class="loading">Checking...</div>';
+  try{
+    const hash = await sha1Hex(pw);
+    const prefix = hash.slice(0,5);
+    const suffix = hash.slice(5);
+    const res = await fetch('https://api.pwnedpasswords.com/range/'+prefix);
+    if(!res.ok) throw new Error('Lookup failed (status '+res.status+')');
+    const text = await res.text();
+    let count = 0;
+    for(const line of text.split('\n')){
+      const parts = line.trim().split(':');
+      if(parts[0] === suffix){ count = parseInt(parts[1],10) || 0; break; }
+    }
+    if(count > 0){
+      resultEl.innerHTML = `<div class="verdict bad">Found in ${count.toLocaleString()} breach${count===1?'':'es'} - do not use this password</div>`;
+    } else {
+      resultEl.innerHTML = `<div class="verdict ok">Not found in known breaches</div>`;
+    }
+    document.getElementById('pwInput').value = '';
+  }catch(e){
+    resultEl.innerHTML = `<div class="err">${e.message}</div>`;
+  }
+};
+
+// ---------------- Email breach check (breach.vip) ----------------
+document.getElementById('emailBtn').onclick = async ()=>{
+  const email = document.getElementById('emailInput').value.trim();
+  const resultEl = document.getElementById('emailResult');
+  if(!email){ return; }
+  resultEl.innerHTML = '<div class="loading">Searching breach.vip...</div>';
+  try{
+    const data = await apiCall('/api/breach-vip-search', {term: email, fields:'email,password,domain,source'});
+    const raw = data.raw;
+    const records = Array.isArray(raw) ? raw
+      : (raw && Array.isArray(raw.results)) ? raw.results
+      : (raw && Array.isArray(raw.data)) ? raw.data
+      : null;
+    if(!records || records.length===0){
+      resultEl.innerHTML = '<div class="verdict ok">No matches found in breach.vip\'s database</div>';
+      addHistory({type:'email', query:email, verdict:'ok'});
+      return;
+    }
+    const matchesHtml = records.slice(0,25).map(r=>{
+      const fields = Object.entries(r).map(([k,v])=> `<div class="bfield"><b>${k}:</b> ${String(v)}</div>`).join('');
+      return `<div class="breach-match">${fields}</div>`;
+    }).join('');
+    resultEl.innerHTML = `<div class="verdict bad">${records.length} match${records.length===1?'':'es'} found</div><div class="breach-count">Showing up to 25 below.</div>${matchesHtml}`;
+    addHistory({type:'email', query:email, verdict:'bad'});
+  }catch(e){
+    resultEl.innerHTML = `<div class="err">${e.message}</div>`;
+  }
+};
+
+// ---------------- Batch check ----------------
+let batchRunning = false;
+function classifyBatchLine(line){
+  const trimmed = line.trim();
+  if(/^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$/.test(trimmed)) return 'hash';
+  if(trimmed) return 'url';
+  return null;
+}
+
+document.getElementById('batchBtn').onclick = async ()=>{
+  const lines = document.getElementById('batchInput').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  if(lines.length===0) return;
+  const key = getKey();
+  if(!key){ document.getElementById('batchList').innerHTML = '<div class="err">Save your VirusTotal API key above first.</div>'; return; }
+
+  batchRunning = true;
+  document.getElementById('batchBtn').disabled = true;
+  document.getElementById('batchStopBtn').style.display = 'inline-block';
+  const listEl = document.getElementById('batchList');
+  listEl.innerHTML = lines.map((l,i)=> `<div class="batch-item" id="batch-${i}"><span class="q">${l}</span><span class="batch-tag pending">queued</span></div>`).join('');
+
+  for(let i=0;i<lines.length;i++){
+    if(!batchRunning) break;
+    const line = lines[i];
+    const type = classifyBatchLine(line);
+    const itemEl = document.getElementById('batch-'+i);
+    const tagEl = itemEl.querySelector('.batch-tag');
+    if(!type){ tagEl.textContent = 'skipped'; tagEl.className = 'batch-tag err'; continue; }
+    tagEl.textContent = 'checking'; tagEl.className = 'batch-tag checking';
+    try{
+      if(type==='url'){
+        const submitData = await apiCall('/api/submit-url', {url: line, apiKey:key});
+        let stats = null;
+        for(let a=0;a<8;a++){
+          await new Promise(r=>setTimeout(r,2000));
+          const check = await apiCall('/api/check-analysis', {analysisId: submitData.analysisId, apiKey:key});
+          if(check.status==='completed'){ stats = check.stats; break; }
+        }
+        if(stats){
+          const v = verdictFromStats(stats);
+          tagEl.textContent = shortVerdictLabel(v.cls); tagEl.className = 'batch-tag '+v.cls;
+          addHistory({type:'url', query:line, verdict:v.cls});
+        } else {
+          tagEl.textContent = 'timed out'; tagEl.className = 'batch-tag err';
+        }
+      } else {
+        const data = await apiCall('/api/lookup-hash', {hash: line, apiKey:key});
+        if(data.notFound){ tagEl.textContent = 'not found'; tagEl.className = 'batch-tag pending'; }
+        else{
+          const v = verdictFromStats(data.stats);
+          tagEl.textContent = shortVerdictLabel(v.cls); tagEl.className = 'batch-tag '+v.cls;
+          addHistory({type:'hash', query:line, verdict:v.cls});
+        }
+      }
+    }catch(e){
+      tagEl.textContent = 'error'; tagEl.className = 'batch-tag err';
+    }
+    if(i < lines.length-1 && batchRunning) await new Promise(r=>setTimeout(r,13000));
+  }
+
+  batchRunning = false;
+  document.getElementById('batchBtn').disabled = false;
+  document.getElementById('batchStopBtn').style.display = 'none';
+};
+
+document.getElementById('batchStopBtn').onclick = ()=>{ batchRunning = false; };
+</script>
+</body>
+</html>
